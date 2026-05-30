@@ -311,7 +311,7 @@ def main():
         console.print("[cyan]Loading plugins from plugins/ folder...[/cyan]")
         folder_plugins = load_plugins()
         if folder_plugins:
-            console.print(f"[green]Loaded {len(folder_plugins)} plugin(s) from folder[/green]"))
+            console.print(f"[green]Loaded {len(folder_plugins)} plugin(s) from folder[/green]")
     
     # Require input for processing
     if not args.input:
