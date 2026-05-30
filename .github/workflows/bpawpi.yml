@@ -56,10 +56,12 @@ jobs:
         python-version: '3.11'
         cache: 'pip'
 
-    - name: Install PyInstaller
+    - name: Install Dependencies & PyInstaller
       run: |
         python -m pip install --upgrade pip
         pip install pyinstaller
+        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+      shell: bash
 
     - name: Run PyInstaller on Selected File
       shell: bash
@@ -67,15 +69,17 @@ jobs:
         RAW_NAME=$(basename "${{ github.event.inputs.file_path }}" | cut -f 1 -d '.')
         SUFFIX="${{ matrix.suffix }}"
         
-        # Build using --windowed for macOS to properly generate the .app bundle structure
         if [ "${{ matrix.os_name }}" = "macos" ]; then
+          # Build raw app bundle first
           pyinstaller --onefile --windowed --name "${RAW_NAME}" "${{ github.event.inputs.file_path }}"
-          # Zip the app bundle immediately using clean bash variables to avoid syntax crashes
           cd dist
+          # Correctly zip the main.app folder into main.app.zip
           zip -r "${RAW_NAME}${SUFFIX}.zip" "${RAW_NAME}${SUFFIX}"
+          # Remove original folder so only the compressed artifact remains in dist/
           rm -rf "${RAW_NAME}${SUFFIX}"
           cd ..
         else
+          # Windows and Linux build smoothly with appended suffixes directly
           pyinstaller --onefile --name "${RAW_NAME}${SUFFIX}" "${{ github.event.inputs.file_path }}"
         fi
 
@@ -88,7 +92,6 @@ jobs:
         path: dist/
 
     # OPTION B: Git Commit Directly Back Into The Repo Codebase
-   # OPTION B: Git Commit Directly Back Into The Repo Codebase
     - name: Commit Binary Directly to Repo Folder
       if: ${{ github.event.inputs.upload_destination == 'commit-to-repo-folder' }}
       shell: bash
@@ -130,3 +133,4 @@ jobs:
         
         echo "Failed to push changes after 5 attempts due to high concurrent race conditions."
         exit 1
+
