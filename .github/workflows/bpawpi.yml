@@ -1,4 +1,4 @@
-name: Manual Multi-OS PyInstaller Build
+name: Build Python app with PyInstaller
 
 on:
   workflow_dispatch:
@@ -65,17 +65,18 @@ jobs:
       shell: bash
       run: |
         RAW_NAME=$(basename "${{ github.event.inputs.file_path }}" | cut -f 1 -d '.')
+        SUFFIX="${{ matrix.suffix }}"
         
         # Build using --windowed for macOS to properly generate the .app bundle structure
         if [ "${{ matrix.os_name }}" = "macos" ]; then
           pyinstaller --onefile --windowed --name "${RAW_NAME}" "${{ github.event.inputs.file_path }}"
-          # Zip the app bundle immediately so it preserves file symlinks and permissions
+          # Zip the app bundle immediately using clean bash variables to avoid syntax crashes
           cd dist
-          zip -r "${RAW_NAME}${matrix.suffix}.zip" "${RAW_NAME}${matrix.suffix}"
-          rm -rf "${RAW_NAME}${matrix.suffix}"
+          zip -r "${RAW_NAME}${SUFFIX}.zip" "${RAW_NAME}${SUFFIX}"
+          rm -rf "${RAW_NAME}${SUFFIX}"
           cd ..
         else
-          pyinstaller --onefile --name "${RAW_NAME}${{ matrix.suffix }}" "${{ github.event.inputs.file_path }}"
+          pyinstaller --onefile --name "${RAW_NAME}${SUFFIX}" "${{ github.event.inputs.file_path }}"
         fi
 
     # OPTION A: Standard GitHub Actions Upload (Temporary zip download)
@@ -93,7 +94,7 @@ jobs:
       run: |
         TARGET_DIR="${{ github.event.inputs.repo_folder_path }}"
         
-        # Sanity check: If the user typed dist/ or ./dist, stop them from self-destructing
+        # Guard clause: Prevents the runner from trying to copy dist/ onto itself
         if [ "$TARGET_DIR" = "dist" ] || [ "$TARGET_DIR" = "dist/" ] || [ "$TARGET_DIR" = "./dist/" ]; then
           echo "Error: Target directory cannot be the temporary build directory (dist/)."
           exit 1
@@ -103,12 +104,13 @@ jobs:
         cp -R dist/* "$TARGET_DIR/"
         
         git config --global user.name "github-actions[bot]"
-        git config --global user.email "github-actions[bot]@users.noreply.github.com"
+        git config --global user.email "github-actions[bot]@://github.com"
         
-        # Pull updates first to prevent out-of-sync branch conflicts
+        # Pull updates first via rebase to prevent multi-OS push conflicts
         git pull origin ${{ github.ref_name }} --rebase
         
         git add "$TARGET_DIR"
         git commit -m "Automated PyInstaller build for ${{ matrix.os_name }} [skip ci]" || echo "No changes to commit"
         git push origin ${{ github.ref_name }}
+
 
