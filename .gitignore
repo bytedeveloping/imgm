@@ -1,0 +1,11 @@
+# imgm - Ignore patterns
+plugins.json
+*.pyc
+__pycache__/
+dist/
+build/
+*.spec
+.DS_Store
+*.egg-info/
+.venv/
+venv/
