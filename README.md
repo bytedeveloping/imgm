@@ -382,3 +382,57 @@ MIT License - Free for personal and commercial use
 ---
 
 **Built with ❤️ for image enthusiasts, photographers, designers, and developers.**
+<p align="center">
+
+  <!-- Stars -->
+  <a href="https://github.com/bytedeveloping/imgm/stargazers">
+    <img src="https://img.shields.io/github/stars/bytedeveloping/imgm?style=for-the-badge" />
+  </a>
+
+  <!-- Forks -->
+  <a href="https://github.com/bytedeveloping/imgm/network/members">
+    <img src="https://img.shields.io/github/forks/bytedeveloping/imgm?style=for-the-badge" />
+  </a>
+
+  <!-- Watchers -->
+  <a href="https://github.com/bytedeveloping/imgm/watchers">
+    <img src="https://img.shields.io/github/watchers/bytedeveloping/imgm?style=for-the-badge" />
+  </a>
+
+  <!-- Issues -->
+  <a href="https://github.com/bytedeveloping/imgm/issues">
+    <img src="https://img.shields.io/github/issues/bytedeveloping/imgm?style=for-the-badge" />
+  </a>
+
+  <!-- Pull Requests -->
+  <a href="https://github.com/bytedeveloping/imgm/pulls">
+    <img src="https://img.shields.io/github/issues-pr/bytedeveloping/imgm?style=for-the-badge" />
+  </a>
+
+  <!-- License -->
+  <a href="https://github.com/bytedeveloping/imgm/blob/main/LICENSE">
+    <img src="https://img.shields.io/github/license/bytedeveloping/imgm?style=for-the-badge" />
+  </a>
+
+  <!-- Last Commit -->
+  <a href="https://github.com/bytedeveloping/imgm/commits/main">
+    <img src="https://img.shields.io/github/last-commit/bytedeveloping/imgm?style=for-the-badge" />
+  </a>
+
+  <!-- Repo Size -->
+  <a href="https://github.com/bytedeveloping/imgm">
+    <img src="https://img.shields.io/github/repo-size/bytedeveloping/imgm?style=for-the-badge" />
+  </a>
+
+  <!-- Commit Activity -->
+  <a href="https://github.com/bytedeveloping/imgm/commits">
+    <img src="https://img.shields.io/github/commit-activity/y/bytedeveloping/imgm?style=for-the-badge" />
+  </a>
+
+  <!-- Contributors -->
+  <a href="https://github.com/bytedeveloping/imgm/graphs/contributors">
+    <img src="https://img.shields.io/github/contributors/bytedeveloping/imgm?style=for-the-badge" />
+  </a>
+
+</p>
+
