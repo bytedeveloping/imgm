@@ -27,10 +27,20 @@ jobs:
     name: Build on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false 
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
+        include:
+          - os: windows-latest
+            suffix: '.exe'
+            os_name: 'windows'
+          - os: macos-latest
+            suffix: '.app'
+            os_name: 'macos'
+          - os: ubuntu-latest
+            suffix: '.bin'
+            os_name: 'linux'
 
-    # Grants permission to push code back into your repository if chosen
+    timeout-minutes: 30 
     permissions:
       contents: write
 
@@ -38,7 +48,7 @@ jobs:
     - name: Check out source code
       uses: actions/checkout@v4
       with:
-        fetch-depth: 0 # Fetches full history to avoid push conflicts
+        fetch-depth: 0 
 
     - name: Set up Python
       uses: actions/setup-python@v5
@@ -52,14 +62,20 @@ jobs:
         pip install pyinstaller
 
     - name: Run PyInstaller on Selected File
-      run: pyinstaller --onefile "${{ github.event.inputs.file_path }}"
+      shell: bash
+      run: |
+        # Extract the base filename without the path or extension (e.g., "src/main.py" -> "main")
+        RAW_NAME=$(basename "${{ github.event.inputs.file_path }}" | cut -f 1 -d '.')
+        
+        # Explicitly name the output binary with the correct extension/suffix
+        pyinstaller --onefile --name "${RAW_NAME}${{ matrix.suffix }}" "${{ github.event.inputs.file_path }}"
 
     # OPTION A: Standard GitHub Actions Upload (Temporary zip download)
     - name: Upload Finished Binary Artifact
       if: ${{ github.event.inputs.upload_destination == 'actions-artifact' }}
       uses: actions/upload-artifact@v4
       with:
-        name: binary-${{ matrix.os }}
+        name: binary-${{ matrix.os_name }}
         path: dist/
 
     # OPTION B: Git Commit Directly Back Into The Repo Codebase
@@ -67,21 +83,19 @@ jobs:
       if: ${{ github.event.inputs.upload_destination == 'commit-to-repo-folder' }}
       shell: bash
       run: |
-        # Create target directory specified in user input box
         TARGET_DIR="${{ github.event.inputs.repo_folder_path }}"
         mkdir -p "$TARGET_DIR"
         
-        # Move built file to target directory and append OS name to binary
-        cp dist/* "$TARGET_DIR/"
+        # Copy the cleanly named files over to your target folder
+        cp -R dist/* "$TARGET_DIR/"
         
-        # Configure Git identity
         git config --global user.name "github-actions[bot]"
         git config --global user.email "github-actions[bot]@://github.com"
         
-        # Pull updates first to prevent out-of-sync branch conflicts
-        git pull origin ${{ github.ref_name }}
+        # Pull latest changes to avoid sync conflicts if another OS finished first
+        git pull origin ${{ github.ref_name }} --rebase
         
-        # Stage, commit, and push binary file natively
         git add "$TARGET_DIR"
-        git commit -m "Automated PyInstaller build for ${{ matrix.os }} [skip ci]" || echo "No changes to commit"
+        git commit -m "Automated PyInstaller build for ${{ matrix.os_name }} [skip ci]" || echo "No changes to commit"
         git push origin ${{ github.ref_name }}
+
