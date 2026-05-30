@@ -1,36 +1,44 @@
-name: Build Executables with PyInstaller
+name: Manual Multi-OS PyInstaller Build
 
 on:
-  push:
-    branches: [ main ]
-  pull_request:
-    branches: [ main ]
   workflow_dispatch:
+    inputs:
+      file_path:
+        description: 'Path to the Python file you want to build'
+        required: true
+        default: 'main.py'
+        type: string
+      upload_destination:
+        description: 'Where should the finished binary go?'
+        required: true
+        default: 'actions-artifact'
+        type: choice
+        options:
+          - 'actions-artifact'
+          - 'commit-to-repo-folder'
+      repo_folder_path:
+        description: 'If committing to repo, type folder path (e.g., builds/bin/)'
+        required: false
+        default: 'dist/'
+        type: string
 
 jobs:
-  build:
+  matrix-build:
     name: Build on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     strategy:
-      fail-fast: false
       matrix:
-        include:
-          - os: windows-latest
-            artifact_name: imgm-windows
-            raw_output: dist/imgm.exe
-            final_output: dist/imgm.exe
-          - os: ubuntu-latest
-            artifact_name: imgm-linux
-            raw_output: dist/imgm
-            final_output: dist/imgm.elf
-          - os: macos-latest
-            artifact_name: imgm-macos
-            raw_output: dist/imgm
-            final_output: dist/imgm
+        os: [ubuntu-latest, windows-latest, macos-latest]
+
+    # Grants permission to push code back into your repository if chosen
+    permissions:
+      contents: write
 
     steps:
-    - name: Checkout Code
+    - name: Check out source code
       uses: actions/checkout@v4
+      with:
+        fetch-depth: 0 # Fetches full history to avoid push conflicts
 
     - name: Set up Python
       uses: actions/setup-python@v5
@@ -38,25 +46,42 @@ jobs:
         python-version: '3.11'
         cache: 'pip'
 
-    - name: Install Dependencies
+    - name: Install PyInstaller
       run: |
         python -m pip install --upgrade pip
         pip install pyinstaller
-        # If your tkinter app uses external libraries (like Pillow for images), install them here:
-        # pip install Pillow
 
-    - name: Build with PyInstaller
-      # We do NOT use --windowed / -w here, so that CLI mode stays active
-      run: |
-        pyinstaller --onefile imgm.py
+    - name: Run PyInstaller on Selected File
+      run: pyinstaller --onefile "${{ github.event.inputs.file_path }}"
 
-    - name: Rename Extension for Linux
-      if: matrix.os == 'ubuntu-latest'
-      run: mv ${{ matrix.raw_output }} ${{ matrix.final_output }}
-
-    - name: Upload Build Artifact
+    # OPTION A: Standard GitHub Actions Upload (Temporary zip download)
+    - name: Upload Finished Binary Artifact
+      if: ${{ github.event.inputs.upload_destination == 'actions-artifact' }}
       uses: actions/upload-artifact@v4
       with:
-        name: ${{ matrix.artifact_name }}
-        path: ${{ matrix.final_output }}
-        retention-days: 5
+        name: binary-${{ matrix.os }}
+        path: dist/
+
+    # OPTION B: Git Commit Directly Back Into The Repo Codebase
+    - name: Commit Binary Directly to Repo Folder
+      if: ${{ github.event.inputs.upload_destination == 'commit-to-repo-folder' }}
+      shell: bash
+      run: |
+        # Create target directory specified in user input box
+        TARGET_DIR="${{ github.event.inputs.repo_folder_path }}"
+        mkdir -p "$TARGET_DIR"
+        
+        # Move built file to target directory and append OS name to binary
+        cp dist/* "$TARGET_DIR/"
+        
+        # Configure Git identity
+        git config --global user.name "github-actions[bot]"
+        git config --global user.email "github-actions[bot]@://github.com"
+        
+        # Pull updates first to prevent out-of-sync branch conflicts
+        git pull origin ${{ github.ref_name }}
+        
+        # Stage, commit, and push binary file natively
+        git add "$TARGET_DIR"
+        git commit -m "Automated PyInstaller build for ${{ matrix.os }} [skip ci]" || echo "No changes to commit"
+        git push origin ${{ github.ref_name }}
