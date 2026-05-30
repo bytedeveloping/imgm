@@ -17,9 +17,9 @@ on:
           - 'actions-artifact'
           - 'commit-to-repo-folder'
       repo_folder_path:
-        description: 'If committing to repo, type folder path (e.g., builds/bin/)'
+        description: 'If committing to repo, type folder path (Do NOT use dist/)'
         required: false
-        default: 'dist/'
+        default: 'builds/'
         type: string
 
 jobs:
@@ -64,11 +64,19 @@ jobs:
     - name: Run PyInstaller on Selected File
       shell: bash
       run: |
-        # Extract the base filename without the path or extension (e.g., "src/main.py" -> "main")
         RAW_NAME=$(basename "${{ github.event.inputs.file_path }}" | cut -f 1 -d '.')
         
-        # Explicitly name the output binary with the correct extension/suffix
-        pyinstaller --onefile --name "${RAW_NAME}${{ matrix.suffix }}" "${{ github.event.inputs.file_path }}"
+        # Build using --windowed for macOS to properly generate the .app bundle structure
+        if [ "${{ matrix.os_name }}" = "macos" ]; then
+          pyinstaller --onefile --windowed --name "${RAW_NAME}" "${{ github.event.inputs.file_path }}"
+          # Zip the app bundle immediately so it preserves file symlinks and permissions
+          cd dist
+          zip -r "${RAW_NAME}${matrix.suffix}.zip" "${RAW_NAME}${matrix.suffix}"
+          rm -rf "${RAW_NAME}${matrix.suffix}"
+          cd ..
+        else
+          pyinstaller --onefile --name "${RAW_NAME}${{ matrix.suffix }}" "${{ github.event.inputs.file_path }}"
+        fi
 
     # OPTION A: Standard GitHub Actions Upload (Temporary zip download)
     - name: Upload Finished Binary Artifact
@@ -84,15 +92,20 @@ jobs:
       shell: bash
       run: |
         TARGET_DIR="${{ github.event.inputs.repo_folder_path }}"
-        mkdir -p "$TARGET_DIR"
         
-        # Copy the cleanly named files over to your target folder
+        # Sanity check: If the user typed dist/ or ./dist, stop them from self-destructing
+        if [ "$TARGET_DIR" = "dist" ] || [ "$TARGET_DIR" = "dist/" ] || [ "$TARGET_DIR" = "./dist/" ]; then
+          echo "Error: Target directory cannot be the temporary build directory (dist/)."
+          exit 1
+        fi
+        
+        mkdir -p "$TARGET_DIR"
         cp -R dist/* "$TARGET_DIR/"
         
         git config --global user.name "github-actions[bot]"
-        git config --global user.email "github-actions[bot]@://github.com"
+        git config --global user.email "github-actions[bot]@users.noreply.github.com"
         
-        # Pull latest changes to avoid sync conflicts if another OS finished first
+        # Pull updates first to prevent out-of-sync branch conflicts
         git pull origin ${{ github.ref_name }} --rebase
         
         git add "$TARGET_DIR"
