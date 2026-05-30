@@ -100,17 +100,18 @@ jobs:
           exit 1
         fi
         
-        mkdir -p "$TARGET_DIR"
-        cp -R dist/* "$TARGET_DIR/"
-        
+        # Set up git identity FIRST
         git config --global user.name "github-actions[bot]"
         git config --global user.email "github-actions[bot]@://github.com"
         
-        # Pull updates first via rebase to prevent multi-OS push conflicts
+        # 1. PULL LATEST CHANGES FIRST before moving new files into the tracking area
         git pull origin ${{ github.ref_name }} --rebase
         
+        # 2. NOW create the target directory and copy the files
+        mkdir -p "$TARGET_DIR"
+        cp -R dist/* "$TARGET_DIR/"
+        
+        # 3. Stage, commit, and push natively
         git add "$TARGET_DIR"
         git commit -m "Automated PyInstaller build for ${{ matrix.os_name }} [skip ci]" || echo "No changes to commit"
         git push origin ${{ github.ref_name }}
-
-
