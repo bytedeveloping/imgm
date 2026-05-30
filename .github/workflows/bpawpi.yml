@@ -88,30 +88,45 @@ jobs:
         path: dist/
 
     # OPTION B: Git Commit Directly Back Into The Repo Codebase
+   # OPTION B: Git Commit Directly Back Into The Repo Codebase
     - name: Commit Binary Directly to Repo Folder
       if: ${{ github.event.inputs.upload_destination == 'commit-to-repo-folder' }}
       shell: bash
       run: |
         TARGET_DIR="${{ github.event.inputs.repo_folder_path }}"
         
-        # Guard clause: Prevents the runner from trying to copy dist/ onto itself
         if [ "$TARGET_DIR" = "dist" ] || [ "$TARGET_DIR" = "dist/" ] || [ "$TARGET_DIR" = "./dist/" ]; then
           echo "Error: Target directory cannot be the temporary build directory (dist/)."
           exit 1
         fi
         
-        # Set up git identity FIRST
         git config --global user.name "github-actions[bot]"
-        git config --global user.email "github-actions[bot]@://github.com"
+        git config --global user.email "github-actions[bot]@users.noreply.github.com"
         
-        # 1. PULL LATEST CHANGES FIRST before moving new files into the tracking area
-        git pull origin ${{ github.ref_name }} --rebase
-        
-        # 2. NOW create the target directory and copy the files
+        # Create folder and stage files locally
         mkdir -p "$TARGET_DIR"
         cp -R dist/* "$TARGET_DIR/"
-        
-        # 3. Stage, commit, and push natively
         git add "$TARGET_DIR"
+        
+        # Commit the changes locally
         git commit -m "Automated PyInstaller build for ${{ matrix.os_name }} [skip ci]" || echo "No changes to commit"
-        git push origin ${{ github.ref_name }}
+        
+        # Concurrency Protection: Try pushing up to 5 times if another OS beats us to it
+        for i in {1..5}; do
+          echo "Attempting to push changes (Try $i of 5)..."
+          
+          # Pull down whatever the other OS just pushed, placing our commit cleanly on top
+          git pull origin ${{ github.ref_name }} --rebase
+          
+          # Try to push to GitHub
+          if git push origin ${{ github.ref_name }}; then
+            echo "Push successful!"
+            exit 0
+          fi
+          
+          echo "Push rejected because another job updated the repo first. Retrying in 5 seconds..."
+          sleep 5
+        done
+        
+        echo "Failed to push changes after 5 attempts due to high concurrent race conditions."
+        exit 1
